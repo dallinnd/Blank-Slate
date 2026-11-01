@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blank Phrase Game</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f8;
+            --card-bg: #ffffff;
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+            --accent-color: #10b981;
+            --accent-hover: #059669;
+            --danger-color: #ef4444;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1, h2 {
+            text-align: center;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button.secondary {
+            background-color: var(--accent-color);
+        }
+
+        button.secondary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        button.danger {
+            background-color: var(--danger-color);
+        }
+
+        .game-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .game-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .row-entry {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .point-btn {
+            background-color: #e5e7eb;
+            color: var(--text-color);
+            border: 1px solid #d1d5db;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .point-btn.active-1 {
+            background-color: #93c5fd;
+            border-color: #3b82f6;
+        }
+
+        .point-btn.active-3 {
+            background-color: #6ee7b7;
+            border-color: #10b981;
+        }
+
+        .total-score {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: right;
+            margin: 20px 0;
+        }
+
+        .add-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Home Screen -->
+    <div id="home-screen" class="card">
+        <h1>Blank Phrase Games</h1>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button onclick="startNewGame()">Start New Game</button>
+        </div>
+        <h2>Saved Games</h2>
+        <div id="game-list"></div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="card hidden">
+        <button onclick="showHome()">← Back to Home</button>
+        <h2 id="game-title">Game</h2>
+        
+        <div id="entries-container"></div>
+
+        <div class="add-controls">
+            <button class="secondary" onclick="addRows(1)">+1 Line</button>
+            <button class="secondary" onclick="addRows(5)">+5 Lines</button>
+            <button class="secondary" onclick="addRows(10)">+10 Lines</button>
+        </div>
+
+        <div class="total-score">Total Score: <span id="total-score">0</span></div>
+    </div>
+</div>
+
+<script>
+    let games = JSON.parse(localStorage.getItem('blankPhraseGames')) || [];
+    let currentGameIndex = null;
+
+    function saveGames() {
+        localStorage.setItem('blankPhraseGames', JSON.stringify(games));
+    }
+
+    function showHome() {
+        document.getElementById('home-screen').classList.remove('hidden');
+        document.getElementById('game-screen').classList.add('hidden');
+        renderGameList();
+    }
+
+    function renderGameList() {
+        const listContainer = document.getElementById('game-list');
+        listContainer.innerHTML = '';
+
+        if (games.length === 0) {
+            listContainer.innerHTML = '<p style="text-align: center;">No saved games yet.</p>';
+            return;
+        }
+
+        games.forEach((game, index) => {
+            const div = document.createElement('div');
+            div.className = 'game-list-item';
+            div.innerHTML = `
+                <div>
+                    <strong>Game</strong><br>
+                    <small>${game.date}</small>
+                </div>
+                <div>
+                    <span>Score: ${game.totalScore}</span>
+                    <button onclick="openGame(${index})" style="margin-left: 10px;">Open</button>
+                    <button class="danger" onclick="deleteGame(${index})" style="margin-left: 5px;">Delete</button>
+                </div>
+            `;
+            listContainer.appendChild(div);
+        });
+    }
+
+    function startNewGame() {
+        const now = new Date();
+        const dateString = now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + 
+                           ' at ' + now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        
+        const initialEntries = [];
+        for (let i = 0; i < 20; i++) {
+            initialEntries.push({ text: '', points: 0 });
+        }
+
+        const newGame = {
+            date: dateString,
+            entries: initialEntries,
+            totalScore: 0
+        };
+
+        games.push(newGame);
+        saveGames();
+        openGame(games.length - 1);
+    }
+
+    function openGame(index) {
+        currentGameIndex = index;
+        document.getElementById('home-screen').classList.add('hidden');
+        document.getElementById('game-screen').classList.remove('hidden');
+        renderGame();
+    }
+
+    function deleteGame(index) {
+        games.splice(index, 1);
+        saveGames();
+        renderGameList();
+    }
+
+    function renderGame() {
+        const game = games[currentGameIndex];
+        document.getElementById('game-title').innerText = `Game - ${game.date}`;
+        const container = document.getElementById('entries-container');
+        container.innerHTML = '';
+
+        game.entries.forEach((entry, idx) => {
+            const row = document.createElement('div');
+            row.className = 'row-entry';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = `Entry ${idx + 1}`;
+            input.value = entry.text;
+            input.oninput = (e) => updateEntryText(idx, e.target.value);
+
+            const btn1 = document.createElement('button');
+            btn1.innerText = '1 Pt';
+            btn1.className = `point-btn ${entry.points === 1 ? 'active-1' : ''}`;
+            btn1.onclick = () => setPoints(idx, 1);
+
+            const btn3 = document.createElement('button');
+            btn3.innerText = '3 Pts';
+            btn3.className = `point-btn ${entry.points === 3 ? 'active-3' : ''}`;
+            btn3.onclick = () => setPoints(idx, 3);
+
+            row.appendChild(input);
+            row.appendChild(btn1);
+            row.appendChild(btn3);
+            container.appendChild(row);
+        });
+
+        calculateTotalScore();
+    }
+
+    function updateEntryText(index, text) {
+        games[currentGameIndex].entries[index].text = text;
+        saveGames();
+    }
+
+    function setPoints(index, points) {
+        const currentPoints = games[currentGameIndex].entries[index].points;
+        if (currentPoints === points) {
+            games[currentGameIndex].entries[index].points = 0;
+        } else {
+            games[currentGameIndex].entries[index].points = points;
+        }
+        saveGames();
+        renderGame();
+    }
+
+    function addRows(count) {
+        for (let i = 0; i < count; i++) {
+            games[currentGameIndex].entries.push({ text: '', points: 0 });
+        }
+        saveGames();
+        renderGame();
+    }
+
+    function calculateTotalScore() {
+        const game = games[currentGameIndex];
+        const total = game.entries.reduce((sum, entry) => sum + entry.points, 0);
+        game.totalScore = total;
+        document.getElementById('total-score').innerText = total;
+        saveGames();
+    }
+
+    // Initial render on load
+    showHome();
+</script>
+
+</body>
+</html>
